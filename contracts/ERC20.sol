@@ -1,21 +1,8 @@
-pragma solidity ^0.4.18;
+pragma solidity >=0.5.16 <0.7.0;
 
 import './SafeMath.sol';
 import './ERC20Interface.sol';
 import './Owned.sol';
-
-// ----------------------------------------------------------------------------
-// 'FIXED' 'Example Fixed Supply Token' token contract
-//
-// Symbol      : FIXED
-// Name        : Example Fixed Supply Token
-// Total supply: 1,000,000.000000000000000000
-// Decimals    : 18
-//
-// Enjoy.
-//
-// (c) BokkyPooBah / Bok Consulting Pty Ltd 2017. The MIT Licence.
-// ----------------------------------------------------------------------------
 
 
 // ----------------------------------------------------------------------------
@@ -23,14 +10,16 @@ import './Owned.sol';
 //
 // Borrowed from MiniMeToken
 // ----------------------------------------------------------------------------
+
 contract ApproveAndCallFallBack {
-    function receiveApproval(address from, uint256 tokens, address token, bytes data) public;
+    function receiveApproval(address from, uint256 tokens, address token, bytes memory data) public;
 }
 
 // ----------------------------------------------------------------------------
 // ERC20 Token, with the addition of symbol, name and decimals and an
 // initial fixed supply
 // ----------------------------------------------------------------------------
+
 contract FixedSupplyToken is ERC20Interface, Owned {
     using SafeMath for uint;
 
@@ -46,28 +35,28 @@ contract FixedSupplyToken is ERC20Interface, Owned {
     // ------------------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------------------
-    function FixedSupplyToken() public {
+    constructor() public {
         symbol = "FIXED";
         name = "Example Fixed Supply Token";
         decimals = 18;
         _totalSupply = 1000000 * 10**uint(decimals);
         balances[owner] = _totalSupply;
-        Transfer(address(0), owner, _totalSupply);
+        emit Transfer(address(0), owner, _totalSupply);
     }
 
 
     // ------------------------------------------------------------------------
     // Total supply
     // ------------------------------------------------------------------------
-    function totalSupply() public constant returns (uint) {
-        return _totalSupply  - balances[address(0)];
+    function totalSupply() public view returns (uint) {
+        return _totalSupply - balances[address(0)];
     }
 
 
     // ------------------------------------------------------------------------
     // Get the token balance for account `tokenOwner`
     // ------------------------------------------------------------------------
-    function balanceOf(address tokenOwner) public constant returns (uint balance) {
+    function balanceOf(address tokenOwner) public view returns (uint balance) {
         return balances[tokenOwner];
     }
 
@@ -80,7 +69,7 @@ contract FixedSupplyToken is ERC20Interface, Owned {
     function transfer(address to, uint tokens) public returns (bool success) {
         balances[msg.sender] = balances[msg.sender].sub(tokens);
         balances[to] = balances[to].add(tokens);
-        Transfer(msg.sender, to, tokens);
+        emit Transfer(msg.sender, to, tokens);
         return true;
     }
 
@@ -95,7 +84,7 @@ contract FixedSupplyToken is ERC20Interface, Owned {
     // ------------------------------------------------------------------------
     function approve(address spender, uint tokens) public returns (bool success) {
         allowed[msg.sender][spender] = tokens;
-        Approval(msg.sender, spender, tokens);
+        emit Approval(msg.sender, spender, tokens);
         return true;
     }
 
@@ -113,7 +102,7 @@ contract FixedSupplyToken is ERC20Interface, Owned {
         balances[from] = balances[from].sub(tokens);
         allowed[from][msg.sender] = allowed[from][msg.sender].sub(tokens);
         balances[to] = balances[to].add(tokens);
-        Transfer(from, to, tokens);
+        emit Transfer(from, to, tokens);
         return true;
     }
 
@@ -122,7 +111,7 @@ contract FixedSupplyToken is ERC20Interface, Owned {
     // Returns the amount of tokens approved by the owner that can be
     // transferred to the spender's account
     // ------------------------------------------------------------------------
-    function allowance(address tokenOwner, address spender) public constant returns (uint remaining) {
+    function allowance(address tokenOwner, address spender) public view returns (uint remaining) {
         return allowed[tokenOwner][spender];
     }
 
@@ -132,10 +121,10 @@ contract FixedSupplyToken is ERC20Interface, Owned {
     // from the token owner's account. The `spender` contract function
     // `receiveApproval(...)` is then executed
     // ------------------------------------------------------------------------
-    function approveAndCall(address spender, uint tokens, bytes data) public returns (bool success) {
+    function approveAndCall(address spender, uint256 tokens, bytes memory data) public returns (bool success) {
         allowed[msg.sender][spender] = tokens;
-        Approval(msg.sender, spender, tokens);
-        ApproveAndCallFallBack(spender).receiveApproval(msg.sender, tokens, this, data);
+        emit Approval(msg.sender, spender, tokens);
+        ApproveAndCallFallBack(spender).receiveApproval(msg.sender, tokens, address(this), data);
         return true;
     }
 
@@ -143,7 +132,7 @@ contract FixedSupplyToken is ERC20Interface, Owned {
     // ------------------------------------------------------------------------
     // Don't accept ETH
     // ------------------------------------------------------------------------
-    function () public payable {
+    function () external payable {
         revert();
     }
 
