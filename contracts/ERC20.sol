@@ -24,7 +24,7 @@ contract FixedSupplyToken is ERC20Interface, Owned {
     using SafeMath for uint;
 
     string public symbol;
-    string public  name;
+    string public name;
     uint8 public decimals;
     uint public _totalSupply;
 
