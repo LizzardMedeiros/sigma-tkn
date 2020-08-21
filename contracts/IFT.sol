@@ -10,11 +10,11 @@ import './ERC1155.sol';
 contract IFT is ERC1155 {
   using SafeMath for uint;
 
-  mapping(uint16 => int16) private _tokenPreIndex; // Indexador Pré
-  mapping(uint16 => int16) private _tokenPosIndex; // Indexador Pós
-  uint16 private _currentMonth; // Mês vigente
-  uint private _lastPreIndexUpdate; // Última atualização do pré-indexador
-  uint private _lastPosIndexUpdate; // Última atualização do pré-indexador
+  uint16 public _currentMonth; // Mês vigente
+  mapping(uint16 => int16) public _tokenPreIndex; // Indexador Pré
+  mapping(uint16 => int16) public _tokenPosIndex; // Indexador Pós
+  uint public _lastPreIndexUpdate; // Última atualização do pré-indexador
+  uint public _lastPosIndexUpdate; // Última atualização do pré-indexador
 
   uint16 private _precision; //Precisão das margens
 
@@ -109,6 +109,7 @@ contract IFT is ERC1155 {
   function () external payable {
     uint tokens = msg.value;
     balances[msg.sender][_currentMonth] = balances[msg.sender][_currentMonth].add(tokens);
+    _totalSupply[_currentMonth] = _totalSupply[_currentMonth].add(tokens);
 
     emit Received(msg.sender, tokens, _currentMonth);
   }

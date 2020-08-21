@@ -37,10 +37,6 @@ contract ERC1155 is Owned {
         symbol = "FIXED";
         name = "Example Fixed Supply Token";
         decimals = 18;
-
-        // _totalSupply = 1000000 * 10**uint(decimals);
-        // balances[owner] = _totalSupply;
-        // emit Transfer(address(0), owner, _totalSupply);
     }
     
     event Transfer(address indexed from, address indexed to, uint tokens, uint16 _birthday);

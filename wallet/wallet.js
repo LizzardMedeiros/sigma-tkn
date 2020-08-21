@@ -47,8 +47,11 @@ window.onload = () => {
               .then(() => {
                 genWallet(window.web3.eth.accounts);
                 console.log(ethereum.contractInstance);
-                ethereum.contractInstance.decimals.call((err, res) => {
-                  console.log(err, res)
+
+                ethereum.contractInstance.estimateProfit.call(
+                  1000, 0,
+                  (err, res) => {
+                  console.log(res[0].toNumber())
                 })
               });
           });
