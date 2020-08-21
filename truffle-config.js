@@ -1,6 +1,7 @@
 module.exports = {
   networks: {
     development: {
+      // host: http://lizzardeth.duckdns.org
       host: "localhost",
       //port: 8545,
       port: 7545,
@@ -10,6 +11,7 @@ module.exports = {
   },
   compilers: {
     solc: {
+      version: "^0.5.16",
       settings: {
         optimizer: {
           enabled: true, // Default: false
