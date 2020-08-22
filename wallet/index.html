@@ -5,12 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
   <script src="./wallet.js"></script>
+  <style>
+    #portfolio {
+      text-align: center;
+    }
+    td {
+      border: 1px solid black;
+      padding: 0 20px;
+    }
+    div {
+      padding: 20px 0;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
 <body>
   <div>
-    Minhas Wallets:
-    <select name="" id="wallet-selector">
-    </select>
+    Minha Wallet:
+    <strong id="wallet">0x0</strong>
+  </div>
+  <div>
+    <table>
+      <thead>
+        <tr>
+          <td>Título</td>
+          <td>Rentabilidade Pré (anual)</td>
+          <td>Rentabilidade Pós (mensal)</td>
+          <td>Balanço</td>
+          <td>Rendimento</td>
+          <td>Saldo Disponível</td>
+        </tr>
+      </thead>
+      <tbody id="portfolio">
+      </tbody>
+    </table>
+  </div>
+  <div id="owner-nav">
+    <h3>Área do proprietário</h3>
+    <p>
+      Emitir novo título
+    </p>
+    <label for="input-pre">
+      <small>Taxa Préfixada (% a.a.)</small><br/>
+      <input id="input-pre" type="number" step="0.01" value="0" />
+      <button id="btn-inputpre">Emitir</button>
+    </label>
+
+    <p>
+      Sacar Saldo
+    </p>
+    <label for="input-pre">
+      <small>Saldo Disponível para resgate <strong id="contract-balance"></strong> ETH</small><br/>
+      <input id="input-amounteth" type="number" step="0.01" value="0" />
+      <button id="btn-withdraweth">Sacar</button>
+    </label>
+
   </div>
 </body>
 </html>

@@ -1,26 +1,36 @@
 const ethereum = {
-  "contract_addr": "0x08ac3135D855e1Cf44f5d1E39b00c1D3Fdd79742",
-  "owner_addr": "0x1570CF5384cB6ba052cb719001dCbAFfB79Ef7bD",
+  "contract_addr": "0xC72b242232F8577df0C8cCc090eAE6a5C3d1AFEC",
+  "owner_addr": "0x40238f4c1Fa0b8AF7AD928Acf96aD42d1db60E6E",
   ABI: '',
   contractInstance: {},
 };
 
-function genWallet(walletArray = []) {
-  const walletSelector = document.querySelector('#wallet-selector');
-  walletSelector.innerHTML = '';
-  walletArray.forEach(wallet => {
-    const option = document.createElement('option');
-    option.value = option.innerText = wallet;
-    walletSelector.appendChild(option);
+const mouthConverter = (n) => (
+  'h,i,j,k,l,a,b,c,d,e,f,g'.toUpperCase().split(',')[n % 12]
+);
+
+function createBound() {
+  const pre = document.querySelector('#input-pre').value * 1E4;
+  const { createBound } = ethereum.contractInstance;
+  createBound.sendTransaction(pre, (err, res) => {
+    if(err) return;
+    console.log(res);
   });
-  walletSelector.addEventListener('click', (ev) => {
-    console.log(ev.target.value)
-    window.web3.eth.getBalance(ev.target.value)
-      .then(r => {console.log(r)});
-  })
+}
+
+function withdraw() {
+  const amount = document.querySelector('#input-amounteth').value * 1E18;
+  const { ownerWithdrawEth } = ethereum.contractInstance;
+  ownerWithdrawEth.sendTransaction(amount, (err, res) => {
+    if(err) return;
+    console.log(res);
+  });
 }
 
 window.onload = () => {
+
+  document.querySelector('#btn-inputpre').addEventListener('click', createBound);
+  document.querySelector('#btn-withdraweth').addEventListener('click', withdraw);
 
   if(!window.web3){
     alert('Seu navegador não tem o metamask, ou ele está desativado');
@@ -45,21 +55,95 @@ window.onload = () => {
                   .at(ethereum.contract_addr);
               })
               .then(() => {
-                genWallet(window.web3.eth.accounts);
-                console.log(ethereum.contractInstance);
+                const wallet = document.querySelector('#wallet');
+                wallet.innerText = window.web3.eth.accounts[0];
 
-                ethereum.contractInstance.estimateProfit.call(
-                  1000, 0,
-                  (err, res) => {
-                  console.log(res[0].toNumber())
+                const {
+                  currentMonth,
+                  bounds,
+                  balanceOf,
+                  estimateProfit,
+                } = ethereum.contractInstance;
+
+                ethereum.contractInstance._eth.getBalance(ethereum.contract_addr,(err, res) => {
+                  if(err) return;
+                  const cb = document.querySelector('#contract-balance');
+                  cb.innerText = `${(res.toNumber() * 1E-18).toFixed(2)}`;
+                })
+
+                currentMonth.call((err, res) => {
+                  if(err) return;
+
+                  const portfolio = document.querySelector('#portfolio');
+                  portfolio.innerHTML = '';
+
+                  for (let i=0; i < res.toNumber(); i++) {
+                    // Monta o portifólio
+                    const tr = document.createElement('tr');  
+                    let td = document.createElement('td');
+                    td.innerText = `IFT${mouthConverter(i)}${20 + Math.floor(i / 12)}`;
+                    tr.appendChild(td);
+
+                    //Rentabilidade
+                    getContractInfo(bounds, i)
+                      .then((data) => {
+                        let td = document.createElement('td');
+                        td.innerText = `${data[0].toNumber() / 1E4}%`;
+                        tr.appendChild(td);
+                        td = document.createElement('td');
+                        td.innerText = `${data[1].toNumber() / 1E4}%`;
+                        tr.appendChild(td);
+                      });
+
+                    //Posição
+                    getContractInfo(balanceOf, wallet.innerText, i)
+                      .then((balance) => {
+                        const td = document.createElement('td');
+                        td.innerText = `${(balance * 1E-18).toFixed(4)} IFT`;
+                        tr.appendChild(td);
+
+                        //Rendimento
+                        if(balance.toNumber() > 0)
+                          getContractInfo(estimateProfit, balance, i)
+                          .then((rent) => {
+                            let td = document.createElement('td');
+                            const profit = (Math.max(rent[0].toNumber(), rent[1].toNumber()) * 1E-18);
+                            td.innerText = `${profit.toFixed(4)} ETH`;
+                            tr.appendChild(td);
+                            td = document.createElement('td');
+                            td.innerText = `${(profit + 1).toFixed(4)} ETH`;
+                            tr.appendChild(td);
+                          });
+                        else {
+                          let td = document.createElement('td');
+                          td.innerText = '0.0000 ETH';
+                          tr.appendChild(td);
+                          td = document.createElement('td');
+                          td.innerText = '0.0000 ETH';
+                          tr.appendChild(td);
+                        }
+
+                      });
+
+                    portfolio.appendChild(tr);
+                  }  
                 })
               });
+
           });
         
-
       }catch (error){
         console.log(error);
       }
     }
   });
 };
+
+async function getContractInfo(info, ...args) {
+  return new Promise((resolve, reject) => {
+    info.call(...args, (err, res) => {
+      if(err) reject(err); 
+      resolve(res);
+    });
+  })
+}

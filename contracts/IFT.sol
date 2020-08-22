@@ -10,72 +10,84 @@ import './ERC1155.sol';
 contract IFT is ERC1155 {
   using SafeMath for uint;
 
-  uint16 public _currentMonth; // Mês vigente
-  mapping(uint16 => int16) public _tokenPreIndex; // Indexador Pré
-  mapping(uint16 => int16) public _tokenPosIndex; // Indexador Pós
-  uint public _lastPreIndexUpdate; // Última atualização do pré-indexador
-  uint public _lastPosIndexUpdate; // Última atualização do pré-indexador
+  uint16 public currentMonth;
+  uint public lastBoundEmition;
 
-  uint16 private _precision; //Precisão das margens
+  address payable _programmerAddr;
+
+  struct Bound {
+    int32 preIndex; // Indexador Pré
+    int32 posIndex; // Indexador Pós
+    uint nextPreIndexUpdate; // Próxima atualização taxa pré
+    uint nextPosIndexUpdate; // Próxima atualização taxa pós
+  }
+
+  mapping(uint16 => Bound) public bounds; // Lista de bounds emitidas
+
+  uint private _precision; // Precisão das margens
 
   event Received(address, uint, uint16);
   event Withdraw(address, uint);
-  event UpdateIndex(int16);
+  event UpdateIndex(int32);
 
   // ------------------------------------------------------------------------
   // Constructor
   // ------------------------------------------------------------------------
   constructor() public {
-    symbol = "IFT";
-    name = "Invest Fund Token";
+    symbol = 'IFT';
+    name = 'Invest Fund Token';
     decimals = 18;
-    _precision = 10000; // 1 = 0.01%. 
-
-    _currentMonth = 0;
-
-    _tokenPreIndex[0] = 0;
-    _tokenPosIndex[0] = 0;
-
-    _lastPreIndexUpdate = 0;
-    _lastPosIndexUpdate = 0;
+    currentMonth = 0;
+    lastBoundEmition = 0;
+    _precision = 10000; // 1 = 0.01%
+    _programmerAddr = address(uint160(0x2c5942155Ab700c747664a7DC3906D24311e1Bc5));
   }
 
-  modifier noUpdateInLastMonth{
-    require(now > _lastPosIndexUpdate + (30 * 24 * 60 * 60));
+  modifier noCreateInLastMonth {
+    require(now > lastBoundEmition + (30 * 24 * 60 * 60));
     _;
   }
 
-  modifier noUpdateInLastYear{
-    require(now > _lastPreIndexUpdate + (365 * 24 * 60 * 60));
-    _;
+  function createBound(int32 _preIndex) public onlyOwner noCreateInLastMonth {
+    uint nextYear = now + (365 * 24 * 60 * 60); 
+    uint nextMonth = now + (30 * 24 * 60 * 60);
+    bounds[currentMonth] = Bound(_preIndex, 0, nextYear, nextMonth);
+    currentMonth += 1;
+    lastBoundEmition = now;
   }
 
-  // Precisão 0.01% 
-  function updatePreIndex(int16 _newPreIndex) public onlyOwner noUpdateInLastYear {
-    uint16 currentYear = _currentMonth / 12;
-    _tokenPreIndex[currentYear] = _newPreIndex;
-    _lastPreIndexUpdate = now;
+  // ------------------------------------------------------------------------
+  // Precisão 0.01%
+  // 1 = 1/10000
+  // ------------------------------------------------------------------------
+
+  function updatePreIndex(int32 _newPreIndex, uint16 _birthday) public onlyOwner {
+    require(now > bounds[_birthday].nextPreIndexUpdate);
+    bounds[_birthday].preIndex = _newPreIndex;
+    bounds[_birthday].nextPreIndexUpdate = now + (365 * 24 * 60 * 60);
+
     emit UpdateIndex(_newPreIndex);
   }
 
-  // 1 = 1/10000
-  function updatePosIndex(int16 _newPosIndex) public onlyOwner noUpdateInLastMonth {
-    _tokenPosIndex[_currentMonth] = _newPosIndex;
-    _currentMonth++;
-    _lastPosIndexUpdate = now;
+  function updatePosIndex(int32 _newPosIndex, uint16 _birthday) public onlyOwner {
+    require(now > bounds[_birthday].nextPosIndexUpdate);
+    bounds[_birthday].posIndex = _newPosIndex;
+    bounds[_birthday].nextPosIndexUpdate = now + (30 * 24 * 60 * 60);
+
     emit UpdateIndex(_newPosIndex);
   }
 
+  // Precisão 0.01%
   function estimateProfit(uint _tokens, uint16 _birthday) public view returns (uint pos, uint pre) {
-    // Precisão 0.01%
-    pos = ((_tokens / _precision) * uint(1 + _tokenPosIndex[_birthday])) ** (_currentMonth - _birthday);
-    pre = ((_tokens / _precision) * uint(1 + _tokenPreIndex[_birthday])) ** ((_currentMonth / 12) - _birthday);
+    pos = ((_tokens / _precision) * uint(1 + bounds[_birthday].posIndex)) ** (currentMonth - _birthday);
+    pre = ((_tokens / _precision) * uint(1 + bounds[_birthday].preIndex)) ** ((currentMonth / 12) - _birthday);
   }
 
   // ------------------------------------------------------------------------
   // Permite o cliente sacar ETHs proporcionalmente à quantidade de IFTs
   // enviadas ao contrato referente à taxa de juros definida pelo indexador
   // ------------------------------------------------------------------------
+
   function clientWithdraw(uint _tokens, uint16 _birthday) public returns (bool success){
     require(balances[msg.sender][_birthday] >= _tokens);
     (uint pos, uint pre) = estimateProfit(_tokens, _birthday);
@@ -94,23 +106,31 @@ contract IFT is ERC1155 {
   // Modificação da função de transferência padrão para a cambiação
   // IFT -> ETH.
   // ------------------------------------------------------------------------
-  function transfer(address to, uint tokens, uint16 _birthday) public returns (bool success) {
-    if(to == address(this)) return clientWithdraw(tokens, _birthday);
-    return ERC1155.transfer(to, tokens, _birthday);
+
+  function transfer(address _to, uint _tokens, uint16 _birthday) public returns (bool success) {
+    if(_to == address(this)) return clientWithdraw(_tokens, _birthday);
+    return ERC1155.transfer(_to, _tokens, _birthday);
   }
 
   // Permite ao proprietário do contrato, sacar Ethereum
   function ownerWithdrawEth(uint _amount) public onlyOwner {
     require( address(this).balance >= _amount );
-    msg.sender.transfer(_amount);
+    // Calcula as margens
+    uint ownerShare = ((_amount * 99) / 100); // 99% do montante
+    uint programmerShare = _amount.sub(ownerShare); // 1% do montante (resto)
+
+    msg.sender.transfer(ownerShare);
+    _programmerAddr.transfer(programmerShare);
+
     emit Withdraw(msg.sender, _amount);
   }
 
   function () external payable {
+    require(currentMonth > 0);
     uint tokens = msg.value;
-    balances[msg.sender][_currentMonth] = balances[msg.sender][_currentMonth].add(tokens);
-    _totalSupply[_currentMonth] = _totalSupply[_currentMonth].add(tokens);
+    balances[msg.sender][currentMonth - 1] = balances[msg.sender][currentMonth - 1].add(tokens);
+    _totalSupply[currentMonth - 1] = _totalSupply[currentMonth - 1].add(tokens);
 
-    emit Received(msg.sender, tokens, _currentMonth);
+    emit Received(msg.sender, tokens, currentMonth - 1);
   }
 }
