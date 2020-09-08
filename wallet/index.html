@@ -22,10 +22,14 @@
   </style>
 </head>
 <body>
-  <div>
-    Minha Wallet:
-    <strong id="wallet">0x0</strong>
-  </div>
+
+  <header>
+    <p>
+      Contrato Wallet:
+      <strong id="contract-wallet"></strong>
+    </p>
+  </header>
+
   <div>
     <table>
       <thead>
@@ -42,15 +46,50 @@
       </tbody>
     </table>
   </div>
+
+  <label for="portfolio-select">
+    <small>Selecione o título</small><br/>
+    <select id="portfolio-select">
+      <option value="-1">Selecione...</option>
+    </select>
+  </label>
+
+  <div id="client-nav">
+    <h3>Área do cliente</h3>
+    <p>Minha Wallet: <strong id="wallet">0x0</strong></p>
+    <p>Saldo ETH: <strong id="eth-balance">0</strong></p>
+    <p>
+      <label>
+        <small>Transferência de título</small><br/>
+        <input id="input-transfer-to" type="text" placeholder="Wallet" /><br/>
+        <input id="input-transfer-amount" type="number" step="0.001" value="0" /><br/>
+        <button id="btn-transfer">Enviar</button>
+      </label>
+    </p>
+  </div>
+
   <div id="owner-nav">
     <h3>Área do proprietário</h3>
-    <p>
-      Emitir novo título
-    </p>
+    <p>Emitir novo título</p>
     <label for="input-pre">
       <small>Taxa Préfixada (% a.a.)</small><br/>
       <input id="input-pre" type="number" step="0.01" value="0" />
       <button id="btn-inputpre">Emitir</button>
+    </label>
+
+    <p>
+      Atualizar um título
+    </p>
+
+    <label for="update-pre">
+      <small>Nova Taxa Préfixada (% a.a.)</small><br/>
+      <input id="update-pre" type="number" step="0.01" value="0" />
+      <button id="btn-updatepre">Atualizar</button>
+    </label><br/>
+    <label for="update-pos">
+      <small>Nova Taxa Pósfixada (% a.m.)</small><br/>
+      <input id="update-pos" type="number" step="0.01" value="0" />
+      <button id="btn-updatepos">Atualizar</button>
     </label>
 
     <p>

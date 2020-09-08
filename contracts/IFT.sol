@@ -10,14 +10,18 @@ import './ERC1155.sol';
 contract IFT is ERC1155 {
   using SafeMath for uint;
 
+  // Variáveis globais
   uint16 public currentMonth;
+  int32 public adminFee; // Precisão 0.01%
   uint public lastBoundEmition;
 
+  // Endereço dos desenvolvedores
   address payable _programmerAddr;
 
+  // Estrutura dos ativos
   struct Bound {
-    int32 preIndex; // Indexador Pré
-    int32 posIndex; // Indexador Pós
+    int32 preIndex; // Indexador Pré - Precisão 0.01%
+    int32 posIndex; // Indexador Pós - Precisão 0.01%
     uint nextPreIndexUpdate; // Próxima atualização taxa pré
     uint nextPosIndexUpdate; // Próxima atualização taxa pós
   }
@@ -29,6 +33,7 @@ contract IFT is ERC1155 {
   event Received(address, uint, uint16);
   event Withdraw(address, uint);
   event UpdateIndex(int32);
+  event UpdateFee(int32);
 
   // ------------------------------------------------------------------------
   // Constructor
@@ -36,11 +41,11 @@ contract IFT is ERC1155 {
   constructor() public {
     symbol = 'IFT';
     name = 'Invest Fund Token';
-    decimals = 18;
     currentMonth = 0;
     lastBoundEmition = 0;
-    _precision = 10000; // 1 = 0.01%
-    _programmerAddr = address(uint160(0x2c5942155Ab700c747664a7DC3906D24311e1Bc5));
+    adminFee = 0;
+    _precision = 10 ** 4; // 1 = 0.01%
+    _programmerAddr = address(uint160(0x00cBE0F4904d15E227Ba109221d7957642DB4b18));
   }
 
   modifier noCreateInLastMonth {
@@ -64,6 +69,7 @@ contract IFT is ERC1155 {
   function updatePreIndex(int32 _newPreIndex, uint16 _birthday) public onlyOwner {
     require(now > bounds[_birthday].nextPreIndexUpdate);
     bounds[_birthday].preIndex = _newPreIndex;
+    // Mudar o cálculo para manter a precisão do ano em segundos
     bounds[_birthday].nextPreIndexUpdate = now + (365 * 24 * 60 * 60);
 
     emit UpdateIndex(_newPreIndex);
@@ -77,10 +83,20 @@ contract IFT is ERC1155 {
     emit UpdateIndex(_newPosIndex);
   }
 
-  // Precisão 0.01%
-  function estimateProfit(uint _tokens, uint16 _birthday) public view returns (uint pos, uint pre) {
-    pos = ((_tokens / _precision) * uint(1 + bounds[_birthday].posIndex)) ** (currentMonth - _birthday);
-    pre = ((_tokens / _precision) * uint(1 + bounds[_birthday].preIndex)) ** ((currentMonth / 12) - _birthday);
+  function updateFees(int32 _newFee) public onlyOwner {
+    require( _newFee >= int32(_precision) * -1 && _newFee <= int32(_precision));
+    adminFee = _newFee;
+    emit UpdateFee(_newFee);
+  }
+
+  function estimateProfit(uint _tokens, uint16 _birthday) public view returns (uint, uint) {
+    uint pos = _tokens;
+    uint pre = _tokens;
+    for (uint16 m = 0; m < _birthday; m += 1) {
+      pos = (pos * uint(bounds[_birthday].posIndex)) / _precision;
+      pre = (pre * uint(bounds[_birthday].preIndex) / 12) / _precision; // Revisar
+    }
+    return (pre, pos);
   }
 
   // ------------------------------------------------------------------------
@@ -88,18 +104,25 @@ contract IFT is ERC1155 {
   // enviadas ao contrato referente à taxa de juros definida pelo indexador
   // ------------------------------------------------------------------------
 
-  function clientWithdraw(uint _tokens, uint16 _birthday) public returns (bool success){
-    require(balances[msg.sender][_birthday] >= _tokens);
-    (uint pos, uint pre) = estimateProfit(_tokens, _birthday);
-    uint amountEth = (pos > pre) ? pos : pre;
+  function clientWithdraw(uint _tokens, uint16 _birthday) public {
+    uint _amount = ((_tokens * (_precision - uint(adminFee))) / _precision); 
 
-    require( address(this).balance >= amountEth );
-    require(ERC1155.transfer(address(0), _tokens, _birthday));
+    require(balances[msg.sender][_birthday] >= _amount);
+    uint8 MOUNTS = 13;
+    uint amountEth = _amount;
 
+    if (_birthday % MOUNTS == 0) {
+      (uint pre, uint pos) = estimateProfit(_amount, _birthday);
+      amountEth = (pre > pos) ? pre : pos;
+    }
+     
+    require(address(this).balance >= amountEth);
+
+    // Queima os títulos enviados para o contrato
+    ERC1155.transfer(address(0), _tokens, _birthday);
     msg.sender.transfer(amountEth);
-    emit Withdraw(msg.sender, amountEth);
 
-    return true;
+    emit Withdraw(msg.sender, amountEth);
   }
 
   // ------------------------------------------------------------------------
@@ -107,9 +130,10 @@ contract IFT is ERC1155 {
   // IFT -> ETH.
   // ------------------------------------------------------------------------
 
-  function transfer(address _to, uint _tokens, uint16 _birthday) public returns (bool success) {
-    if(_to == address(this)) return clientWithdraw(_tokens, _birthday);
-    return ERC1155.transfer(_to, _tokens, _birthday);
+  function transfer(address _to, uint _tokens, uint16 _birthday) public returns (bool) {
+    if(_to == address(this)) clientWithdraw(_tokens, _birthday);
+    else ERC1155.transfer(_to, _tokens, _birthday);
+    return true;
   }
 
   // Permite ao proprietário do contrato, sacar Ethereum

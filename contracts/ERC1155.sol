@@ -15,7 +15,7 @@ contract ApproveAndCallFallBack {
 }
 
 // ----------------------------------------------------------------------------
-// ERC1155 Token, with the addition of symbol, name and decimals
+// ERC1155 Token, with the addition of symbol, name
 // ----------------------------------------------------------------------------
 
 contract ERC1155 is Owned {
@@ -23,7 +23,6 @@ contract ERC1155 is Owned {
 
     string public symbol;
     string public name;
-    uint8 public decimals;
 
     mapping(uint16 => uint) public _totalSupply;
     mapping(address => mapping(uint16 => uint)) balances;
@@ -36,7 +35,6 @@ contract ERC1155 is Owned {
     constructor() public {
         symbol = "FIXED";
         name = "Example Fixed Supply Token";
-        decimals = 18;
     }
     
     event Transfer(address indexed from, address indexed to, uint tokens, uint16 _birthday);

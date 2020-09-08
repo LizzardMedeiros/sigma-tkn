@@ -1,12 +1,12 @@
 const ethereum = {
-  "contract_addr": "0xC72b242232F8577df0C8cCc090eAE6a5C3d1AFEC",
-  "owner_addr": "0x40238f4c1Fa0b8AF7AD928Acf96aD42d1db60E6E",
+  "contract_addr": "0x3f1c3257610cA4Ce09F2AC72EbbeD3528FABDE3a",
+  "owner_addr": "0xFAF5BaCf6F7432aB1a72e04D4aA29DbA76b2BBC5",
   ABI: '',
   contractInstance: {},
 };
 
-const mouthConverter = (n) => (
-  'h,i,j,k,l,a,b,c,d,e,f,g'.toUpperCase().split(',')[n % 12]
+const mouthConverter = n => (
+  'hijklabcdefg'.toUpperCase().split('')[n % 12]
 );
 
 function createBound() {
@@ -15,6 +15,53 @@ function createBound() {
   createBound.sendTransaction(pre, (err, res) => {
     if(err) return;
     console.log(res);
+  });
+}
+
+function updateFees({target}) {
+  const newPreFee = Number(document.querySelector('#update-pre').value) * 1E4 || 0;
+  const newPosFee = Number(document.querySelector('#update-pos').value) * 1E4 || 0;
+  const birthday = Number(document.querySelector('#portfolio-select').value);
+  const { updatePreIndex, updatePosIndex } = ethereum.contractInstance;
+
+  if(birthday === -1) {
+    alert('Selecione um título!');
+    return;
+  }
+
+  if (target.id === 'btn-updatepre') {
+    console.log('Pre', newPreFee);
+    if(newPreFee === 0) return;
+    updatePreIndex.sendTransaction(newPreFee, birthday, (err) => {
+      if(err) console.error(err);
+    });
+  } else if (target.id === 'btn-updatepos') {
+    console.log('Pos', newPosFee);
+    if(newPosFee === 0) return;
+    updatePosIndex.sendTransaction(newPosFee, birthday, (err) => {
+      if(err) console.error(err);
+    });
+  }
+}
+
+function sendIft() {
+  const to = document.querySelector('#input-transfer-to').value;
+  const amount = Number(document.querySelector('#input-transfer-amount').value) * 1E18;
+  const birthday = Number(document.querySelector('#portfolio-select').value);
+  const { transfer } = ethereum.contractInstance;
+
+  if (birthday === -1) {
+    alert('Selecione um título');
+    return
+  }
+
+  if (amount === 0) {
+    alert('Preencha a quantidade');
+    return;
+  }
+
+  transfer.sendTransaction(to, amount, birthday, (err) => {
+    if(err) console.err(err);
   });
 }
 
@@ -29,8 +76,12 @@ function withdraw() {
 
 window.onload = () => {
 
+  document.querySelector('#contract-wallet').innerText = ethereum.contract_addr;
   document.querySelector('#btn-inputpre').addEventListener('click', createBound);
   document.querySelector('#btn-withdraweth').addEventListener('click', withdraw);
+  document.querySelector('#btn-updatepre').addEventListener('click', updateFees);
+  document.querySelector('#btn-updatepos').addEventListener('click', updateFees);
+  document.querySelector('#btn-transfer').addEventListener('click', sendIft);
 
   if(!window.web3){
     alert('Seu navegador não tem o metamask, ou ele está desativado');
@@ -44,6 +95,11 @@ window.onload = () => {
         return;     
       } try {
         window.ethereum.enable();
+
+        window.web3.eth.getGasPrice((e, r) => {
+          console.log(r.toNumber());
+        });
+
         fetch('./contracts/IFT.json')
           .then(IFT => {
             IFT.json()
@@ -57,6 +113,9 @@ window.onload = () => {
               .then(() => {
                 const wallet = document.querySelector('#wallet');
                 wallet.innerText = window.web3.eth.accounts[0];
+                window.web3.eth.getBalance(wallet.innerText, (e, r) => {
+                  document.querySelector('#eth-balance').innerText = r.toNumber() * 1E-18;
+                });
 
                 const {
                   currentMonth,
@@ -75,14 +134,18 @@ window.onload = () => {
                   if(err) return;
 
                   const portfolio = document.querySelector('#portfolio');
+                  const portfolioSelector = document.querySelector('#portfolio-select');
                   portfolio.innerHTML = '';
 
                   for (let i=0; i < res.toNumber(); i++) {
                     // Monta o portifólio
+                    const option = document.createElement('option');
                     const tr = document.createElement('tr');  
                     let td = document.createElement('td');
-                    td.innerText = `IFT${mouthConverter(i)}${20 + Math.floor(i / 12)}`;
+                    td.innerText = option.innerText = `IFT${mouthConverter(i)}${20 + Math.floor(i / 12)}`;
                     tr.appendChild(td);
+                    option.value = i;
+                    portfolioSelector.appendChild(option);
 
                     //Rentabilidade
                     getContractInfo(bounds, i)
@@ -111,7 +174,7 @@ window.onload = () => {
                             td.innerText = `${profit.toFixed(4)} ETH`;
                             tr.appendChild(td);
                             td = document.createElement('td');
-                            td.innerText = `${(profit + 1).toFixed(4)} ETH`;
+                            td.innerText = `${(profit).toFixed(4)} ETH`;
                             tr.appendChild(td);
                           });
                         else {
@@ -133,7 +196,7 @@ window.onload = () => {
           });
         
       }catch (error){
-        console.log(error);
+        console.error(error);
       }
     }
   });
