@@ -6,20 +6,13 @@ import "../contracts/IFT.sol";
 
 contract TestIFT {
 
-  function testInitialBalanceUsingDeployedContract() public {
-    IFT meta = IFT(DeployedAddresses.IFT());
-
-    uint expected = 1000000;
-
-    Assert.equal(meta.balanceOf(tx.origin), expected, "Owner should have 1000000 MetaCoin initially");
-  }
-
-  function testInitialBalanceWithNewIFT() public {
+  function testContractNameAndSymbol() public {
     IFT meta = new IFT();
+    string memory expectedName = "Invest Fund Token";
+    string memory expectedSymbol = "Invest Fund Token";
 
-    uint expected = 1000000;
-
-    Assert.equal(meta.balanceOf(tx.origin), expected, "Owner should have 1000000 MetaCoin initially");
+    Assert.equal(meta.name(), expected, "Name have to be equal Invest Fund Token");
+    Assert.equal(meta.symbol(), expected, "Symbol have to be equal IFT");
   }
 
 }

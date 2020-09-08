@@ -38,6 +38,7 @@ contract IFT is ERC1155 {
   // ------------------------------------------------------------------------
   // Constructor
   // ------------------------------------------------------------------------
+  
   constructor() public {
     symbol = 'IFT';
     name = 'Invest Fund Token';
@@ -53,6 +54,11 @@ contract IFT is ERC1155 {
     _;
   }
 
+  // ------------------------------------------------------------------------
+  // TAXAS DE CONTRATO
+  // Preindex e Posindex - precisão 1/10000 ou 0.01%
+  // ------------------------------------------------------------------------
+
   function createBound(int32 _preIndex) public onlyOwner noCreateInLastMonth {
     uint nextYear = now + (365 * 24 * 60 * 60); 
     uint nextMonth = now + (30 * 24 * 60 * 60);
@@ -60,11 +66,6 @@ contract IFT is ERC1155 {
     currentMonth += 1;
     lastBoundEmition = now;
   }
-
-  // ------------------------------------------------------------------------
-  // Precisão 0.01%
-  // 1 = 1/10000
-  // ------------------------------------------------------------------------
 
   function updatePreIndex(int32 _newPreIndex, uint16 _birthday) public onlyOwner {
     require(now > bounds[_birthday].nextPreIndexUpdate);
