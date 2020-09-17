@@ -34,6 +34,7 @@ contract IFT is ERC1155 {
   event Withdraw(address, uint);
   event UpdateIndex(int32);
   event UpdateFee(int32);
+  event CreateBound(uint16);
 
   // ------------------------------------------------------------------------
   // Constructor
@@ -65,6 +66,7 @@ contract IFT is ERC1155 {
     bounds[currentMonth] = Bound(_preIndex, 0, nextYear, nextMonth);
     currentMonth += 1;
     lastBoundEmition = now;
+    emit CreateBound(currentMonth);
   }
 
   function updatePreIndex(int32 _newPreIndex, uint16 _birthday) public onlyOwner {
@@ -94,8 +96,8 @@ contract IFT is ERC1155 {
     uint pos = _tokens;
     uint pre = _tokens;
     for (uint16 m = 0; m < _birthday; m += 1) {
-      pos = (pos * uint(bounds[_birthday].posIndex)) / _precision;
-      pre = (pre * uint(bounds[_birthday].preIndex) / 12) / _precision; // Revisar
+      pos = pos * (1 + uint(bounds[_birthday].posIndex) / _precision);
+      pre = pre * (1 + (uint(bounds[_birthday].preIndex) / 12) / _precision); // Revisar
     }
     return (pre, pos);
   }

@@ -1,0 +1,36 @@
+pragma solidity >=0.4.22 <0.7.0;
+
+import "truffle/Assert.sol";
+import "truffle/DeployedAddresses.sol";
+import "../contracts/IFT.sol";
+
+contract TestIFT {
+
+  function testContractNameAndSymbol() public {
+    IFT meta = new IFT();
+    string memory expectedName = "Invest Fund Token";
+    string memory expectedSymbol = "IFT";
+
+    Assert.equal(meta.name(), expectedName, "Name have to be equal Invest Fund Token");
+    Assert.equal(meta.symbol(), expectedSymbol, "Symbol have to be equal IFT");
+  }
+
+  function testContractEmitBounds() public {
+    IFT meta = new IFT();
+
+    uint expectedInitialMonth = 0;
+    uint expectedAfterMonth = 1;
+    int32 firstPreIndex = 10 * (10 ** 4); // 10%
+    bool response;
+
+    Assert.equal(uint(meta.currentMonth()), expectedInitialMonth, "Initial Month have to be 0");
+    
+    meta.createBound(firstPreIndex);
+    Assert.equal(uint(meta.currentMonth()), expectedAfterMonth, "Month after first emition have to be 1");
+    
+    response = meta.createBound.gas(200000)(firstPreIndex); 
+
+    Assert.isFalse(response, "Can't generate two bound in same time!");
+  }
+
+}
