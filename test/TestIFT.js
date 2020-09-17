@@ -41,6 +41,7 @@ contract('IFT', (accounts) => {
       bounds,
     } = await IFT.deployed();
 
+    // Testando o ambiente
     const exMonth = 0;
     const exLastEmition = 0;
     const firstPreIndex = 10 * 1E3;
@@ -50,9 +51,14 @@ contract('IFT', (accounts) => {
     assert.equal(curMonth.toNumber(), exMonth, 'The initial month have to be 0');
     assert.equal(curEmition.toNumber(), exLastEmition, 'The initial timestamp have to be 0');
 
-    // Cria um novo bound
+    // Testando os bounds
+
+    // Testa se uma conta aleatória pode emitir bounds
+    let r = await haveToRevert(createBound.sendTransaction(firstPreIndex, { from: accounts[1]}));
+    assert.ok(r, 'Only owner can emit new bounds!');
+
+    // Gera novo bound
     await createBound.sendTransaction(firstPreIndex);
-    
     const { 
       0: boundPreIndex,
       1: boundPosIndex,
@@ -60,6 +66,7 @@ contract('IFT', (accounts) => {
       3: boundNextPosIndex,
     } = await bounds.call(curMonth);
 
+    // Testa se as taxas estão devidamente registradas
     assert.equal(boundPreIndex.toNumber(), firstPreIndex, `Bound preindex have to be ${firstPreIndex}`);
     assert.equal(boundPosIndex.toNumber(), 0, `Bound can not have to be greater than 0`);
     
@@ -67,6 +74,7 @@ contract('IFT', (accounts) => {
     const nextYear = now + YEAR_TO_SEC;
     const nextMonth = now + MONTH_TO_SEC;
 
+    // Testa atualizações
     assert.ok(timestampNear(boundNextPreIndex.toNumber(), nextYear), 'The preindex deadline have to be 1 year');
     assert.ok(timestampNear(boundNextPosIndex.toNumber(), nextMonth), 'The posindex deadline have to be 1 month');
 
@@ -76,7 +84,28 @@ contract('IFT', (accounts) => {
     assert.equal(curMonth.toNumber(), exMonth + 1, 'The current month have to be 1');
     assert.ok(timestampNear(curEmition.toNumber(), now) ,`O timestamp inicial precisa ser ${now}`);
 
-    const r = await haveToRevert(createBound.call(firstPreIndex));
+    // Testa se é possível emitir outro bound
+    r = await haveToRevert(createBound.call(firstPreIndex));
     assert.ok(r, 'New emition is forbiden!');
+  });
+
+  it('Testing fees', () => {
+
+  });
+
+  it('Testing profit calculation (with mock)', () => {
+
+  });
+
+  it('Testing ETH transactions', () => {
+
+  });
+
+  it('Testing IFT transactions', () => {
+
+  });
+
+  if('Testing programmer fees', () => {
+
   });
 });
