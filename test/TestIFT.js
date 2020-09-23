@@ -1,4 +1,5 @@
 const IFT = artifacts.require('IFT');
+const IFTM = artifacts.require('IFTM');
 
 // Consts
  const YEAR_TO_SEC = (365 * 24 * 60 * 60);
@@ -6,6 +7,12 @@ const IFT = artifacts.require('IFT');
 
 const getSeconds = () => Math.floor(Date.now() / 1000);
 const timestampNear = (t1, t2) => Math.abs(t1 - t2) <= 10;
+
+const transactionDetails = ( nonce, to, val ) => ({
+  to,
+  value: web3.toHex( web3.toWei(val.toString(), 'ether') ),
+  nonce,
+});
 
 const haveToRevert = async (func) =>
   await new Promise(async (resolve, reject) => {
@@ -29,11 +36,11 @@ contract('IFT', (accounts) => {
     const curSymbol = await symbol.call();
 
     assert.equal(curName.toString(), exName, `Name have to be ${exName}`);
-    assert.equal(curSymbol.toString(), exSymbol, `Symbol have to be ${exSymbol}`)
+    assert.equal(curSymbol.toString(), exSymbol, `Symbol have to be ${exSymbol}`);
   });
 
   // Test Bounds
-  it.only('Testing Bounds', async () => {
+  it('Testing Bounds', async () => {
     const {
       currentMonth,
       lastBoundEmition,
@@ -62,13 +69,15 @@ contract('IFT', (accounts) => {
     const { 
       0: boundPreIndex,
       1: boundPosIndex,
-      2: boundNextPreIndex,
-      3: boundNextPosIndex,
+      2: boundCurIndex,
+      3: boundNextPreIndex,
+      4: boundNextPosIndex,
     } = await bounds.call(curMonth);
 
     // Testa se as taxas estão devidamente registradas
     assert.equal(boundPreIndex.toNumber(), firstPreIndex, `Bound preindex have to be ${firstPreIndex}`);
-    assert.equal(boundPosIndex.toNumber(), 0, `Bound can not have to be greater than 0`);
+    assert.equal(boundPosIndex.toNumber(), 0, `Bound posindex can not have to be greater than 0`);
+    assert.equal(boundCurIndex.toNumber(), 0, `Bound curindex can not have to be greater than 0`);
     
     const now = getSeconds();
     const nextYear = now + YEAR_TO_SEC;
@@ -89,12 +98,67 @@ contract('IFT', (accounts) => {
     assert.ok(r, 'New emition is forbiden!');
   });
 
-  it('Testing fees', () => {
+  it('Testing profit calculation (with mock)', async () => {
+    const meta = IFTM.deployed();
+    const {
+      symbol,
+      currentMonth,
+      estimateProfit,
+      lastBoundEmition,
+      createBound,
+      updatePreIndex,
+      updatePosIndex,
+      addMonth,
+    } = await meta;
 
-  });
+    // Test if contract was deployed
 
-  it('Testing profit calculation (with mock)', () => {
+    const exSymbol = 'IFTM';
+    const curSymbol = await symbol.call();
+    assert.equal(curSymbol.toString(), exSymbol, `Symbol have to be ${exSymbol}`);
+    
+    // Testing Pre index
 
+    //Gera um bound com taxa aleatória
+    const firstPreIndex = Math.ceil(Math.random() * 100) * 1E2; 
+
+    // Gera novo bound
+    await createBound.sendTransaction(firstPreIndex);
+    const curLastBoundEmition = await lastBoundEmition.call();
+    assert.ok(curLastBoundEmition.toNumber() > 0, `Bound have to be created.`);
+
+    await addMonth.sendTransaction(12);
+    await updatePreIndex.sendTransaction(0, 0); // Kills bound[0]
+
+    let curMonth = await currentMonth.call();
+    assert.equal(curMonth.toNumber(), 13, 'Current mouth have to be 13');
+
+    // makes 10 random amount tests
+    for (let i=0; i<10; i++) {
+      const amount = Math.ceil(Math.random() * 1E10);
+      const profit = await estimateProfit.call(amount, 0);
+      const exProfit = Math.floor(amount + (amount * firstPreIndex / 1E5));
+      assert.equal(profit.toNumber(), exProfit, `Total have to be ${profit.toNumber()}`);
+    }
+
+    // Testing Pos index
+
+    await createBound.sendTransaction(10 * 1E3);
+    const nextBoundEmition = await lastBoundEmition.call();
+    assert.ok(curLastBoundEmition.toNumber() < nextBoundEmition.toNumber(), `Bound have to be created.`);
+
+    curMonth = await currentMonth.call();
+    const newBoundMonth = curMonth - 1;
+
+    const firstPosIndex = (30 * 1E3);
+    await updatePosIndex.sendTransaction(firstPosIndex, newBoundMonth);
+    await addMonth.sendTransaction(12);
+    await updatePreIndex.sendTransaction(0, newBoundMonth); // Kills bound[0]
+
+    const amount = 100;
+    const profit = await estimateProfit.call(amount, newBoundMonth);
+    const exProfit = Math.floor(amount + (amount * firstPosIndex / 1E5));
+    assert.equal(profit.toNumber(), exProfit, `Total have to be ${exProfit}`);
   });
 
   it('Testing ETH transactions', () => {
@@ -105,7 +169,4 @@ contract('IFT', (accounts) => {
 
   });
 
-  if('Testing programmer fees', () => {
-
-  });
 });

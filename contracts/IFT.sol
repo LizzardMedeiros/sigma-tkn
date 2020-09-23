@@ -22,6 +22,7 @@ contract IFT is ERC1155 {
   struct Bound {
     int32 preIndex; // Indexador Pré - Precisão 0.01%
     int32 posIndex; // Indexador Pós - Precisão 0.01%
+    int32 curIndex; // Indexador Atual - Precisão 0.01%
     uint nextPreIndexUpdate; // Próxima atualização taxa pré
     uint nextPosIndexUpdate; // Próxima atualização taxa pós
   }
@@ -63,7 +64,7 @@ contract IFT is ERC1155 {
   function createBound(int32 _preIndex) public onlyOwner noCreateInLastMonth {
     uint nextYear = now + (365 * 24 * 60 * 60); 
     uint nextMonth = now + (30 * 24 * 60 * 60);
-    bounds[currentMonth] = Bound(_preIndex, 0, nextYear, nextMonth);
+    bounds[currentMonth] = Bound(_preIndex, 0, 0, nextYear, nextMonth);
     currentMonth += 1;
     lastBoundEmition = now;
     emit CreateBound(currentMonth);
@@ -71,8 +72,10 @@ contract IFT is ERC1155 {
 
   function updatePreIndex(int32 _newPreIndex, uint16 _birthday) public onlyOwner {
     require(now > bounds[_birthday].nextPreIndexUpdate);
+    int32 preIndex = bounds[_birthday].preIndex;
+    int32 posIndex = bounds[_birthday].posIndex;
+    bounds[_birthday].curIndex = (preIndex > posIndex) ? preIndex : posIndex;
     bounds[_birthday].preIndex = _newPreIndex;
-    // Mudar o cálculo para manter a precisão do ano em segundos
     bounds[_birthday].nextPreIndexUpdate = now + (365 * 24 * 60 * 60);
 
     emit UpdateIndex(_newPreIndex);
@@ -92,14 +95,8 @@ contract IFT is ERC1155 {
     emit UpdateFee(_newFee);
   }
 
-  function estimateProfit(uint _tokens, uint16 _birthday) public view returns (uint, uint) {
-    uint pos = _tokens;
-    uint pre = _tokens;
-    for (uint16 m = 0; m < _birthday; m += 1) {
-      pos = pos * (1 + uint(bounds[_birthday].posIndex) / _precision);
-      pre = pre * (1 + (uint(bounds[_birthday].preIndex) / 12) / _precision); // Revisar
-    }
-    return (pre, pos);
+  function estimateProfit(uint _tokens, uint16 _birthday) public view returns (uint profit) {
+    profit = _tokens + (_tokens * uint(bounds[_birthday].curIndex) / _precision / 10);
   }
 
   // ------------------------------------------------------------------------
@@ -111,13 +108,7 @@ contract IFT is ERC1155 {
     uint _amount = ((_tokens * (_precision - uint(adminFee))) / _precision); 
 
     require(balances[msg.sender][_birthday] >= _amount);
-    uint8 MOUNTS = 13;
-    uint amountEth = _amount;
-
-    if (_birthday % MOUNTS == 0) {
-      (uint pre, uint pos) = estimateProfit(_amount, _birthday);
-      amountEth = (pre > pos) ? pre : pos;
-    }
+    uint amountEth = estimateProfit(_amount, _birthday);
      
     require(address(this).balance >= amountEth);
 

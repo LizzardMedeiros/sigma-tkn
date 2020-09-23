@@ -1,3 +1,4 @@
-node_modules
+node_modules/
 backup
-build
+build/
+.env

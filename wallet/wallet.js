@@ -1,5 +1,5 @@
 const ethereum = {
-  "contract_addr": "0x3f1c3257610cA4Ce09F2AC72EbbeD3528FABDE3a",
+  "contract_addr": "0x33d6baE099Ae00073F842755C0f49bD427Ea3e93",
   "owner_addr": "0xFAF5BaCf6F7432aB1a72e04D4aA29DbA76b2BBC5",
   ABI: '',
   contractInstance: {},
