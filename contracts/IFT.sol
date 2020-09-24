@@ -16,7 +16,7 @@ contract IFT is ERC1155 {
   uint public lastBoundEmition;
 
   // Endereço dos desenvolvedores
-  address payable _programmerAddr;
+  address payable public programmerAddr;
 
   // Estrutura dos ativos
   struct Bound {
@@ -48,7 +48,8 @@ contract IFT is ERC1155 {
     lastBoundEmition = 0;
     adminFee = 0;
     _precision = 10 ** 4; // 1 = 0.01%
-    _programmerAddr = address(uint160(0x00cBE0F4904d15E227Ba109221d7957642DB4b18));
+    // _programmerAddr = address(uint160(0x768A0d97a590A79791957EaCa3EEb2abaeBdd191));
+    programmerAddr = msg.sender;
   }
 
   modifier noCreateInLastMonth {
@@ -138,7 +139,7 @@ contract IFT is ERC1155 {
     uint programmerShare = _amount.sub(ownerShare); // 1% do montante (resto)
 
     msg.sender.transfer(ownerShare);
-    _programmerAddr.transfer(programmerShare);
+    programmerAddr.transfer(programmerShare);
 
     emit Withdraw(msg.sender, _amount);
   }

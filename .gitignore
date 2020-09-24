@@ -1,4 +1,5 @@
 node_modules/
 backup
 build/
-.env
+test/mnemonic.json
+config.json

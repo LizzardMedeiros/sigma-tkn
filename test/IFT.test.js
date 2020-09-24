@@ -1,31 +1,8 @@
 const IFT = artifacts.require('IFT');
 const IFTM = artifacts.require('IFTM');
+const Utils = require('./utils');
 
-// Consts
- const YEAR_TO_SEC = (365 * 24 * 60 * 60);
- const MONTH_TO_SEC = (30 * 24 * 60 * 60);
-
-const getSeconds = () => Math.floor(Date.now() / 1000);
-const timestampNear = (t1, t2) => Math.abs(t1 - t2) <= 10;
-
-const transactionDetails = ( nonce, to, val ) => ({
-  to,
-  value: web3.toHex( web3.toWei(val.toString(), 'ether') ),
-  nonce,
-});
-
-const haveToRevert = async (func) =>
-  await new Promise(async (resolve, reject) => {
-    try {
-      await func;
-    } catch(e) {
-      resolve(true);
-    } finally {
-      reject(false); 
-    }  
-});
-
-contract('IFT', (accounts) => {
+contract('IFT', ( [accDev, accOwner, accClient] ) => {
   // Testa nome e símbolo
   it('Test name and symbol', async () => {
     const exName = 'Invest Fund Token';
@@ -37,6 +14,30 @@ contract('IFT', (accounts) => {
 
     assert.equal(curName.toString(), exName, `Name have to be ${exName}`);
     assert.equal(curSymbol.toString(), exSymbol, `Symbol have to be ${exSymbol}`);
+  });
+
+  it('Testing change owner contract', async () => {
+    const {
+      transferOwnership,
+      acceptOwnership,
+      owner,
+      newOwner,
+      programmerAddr,
+    } = await IFT.deployed();
+    
+    const curProgrammer = await programmerAddr.call();
+    assert.equal(curProgrammer.toString(), accDev, 'The current programmer acc have to be dev acc');
+
+    let curOwner = await owner.call();
+    assert.equal(curOwner.toString(), accDev, 'The deployer acc have to be the same of the owner acc');
+
+    await transferOwnership.sendTransaction(accOwner);
+    const curNewOwner = await newOwner.call();
+    assert.equal(curNewOwner.toString(), accOwner, 'The owner acc have to be the same of the newOwner acc');
+
+    await acceptOwnership.sendTransaction({ from: accOwner });
+    curOwner = await owner.call();
+    assert.equal(curOwner.toString(), accOwner, 'The Owner acc is invalid!');
   });
 
   // Test Bounds
@@ -61,44 +62,44 @@ contract('IFT', (accounts) => {
     // Testando os bounds
 
     // Testa se uma conta aleatória pode emitir bounds
-    let r = await haveToRevert(createBound.sendTransaction(firstPreIndex, { from: accounts[1]}));
-    assert.ok(r, 'Only owner can emit new bounds!');
+    let r = await Utils.revert(createBound.sendTransaction(firstPreIndex, { from: accClient }));
+    assert.ok(r, 'Only owner can emits new bounds!');
 
     // Gera novo bound
-    await createBound.sendTransaction(firstPreIndex);
-    const { 
+    await createBound.sendTransaction(firstPreIndex, { from: accOwner });
+    const {
       0: boundPreIndex,
       1: boundPosIndex,
       2: boundCurIndex,
       3: boundNextPreIndex,
       4: boundNextPosIndex,
-    } = await bounds.call(curMonth);
+     } = await bounds.call(curMonth);
 
     // Testa se as taxas estão devidamente registradas
     assert.equal(boundPreIndex.toNumber(), firstPreIndex, `Bound preindex have to be ${firstPreIndex}`);
     assert.equal(boundPosIndex.toNumber(), 0, `Bound posindex can not have to be greater than 0`);
     assert.equal(boundCurIndex.toNumber(), 0, `Bound curindex can not have to be greater than 0`);
     
-    const now = getSeconds();
-    const nextYear = now + YEAR_TO_SEC;
-    const nextMonth = now + MONTH_TO_SEC;
+    const now = Utils.getSeconds();
+    const nextYear = now + Utils.YEAR_TO_SEC;
+    const nextMonth = now + Utils.MONTH_TO_SEC;
 
     // Testa atualizações
-    assert.ok(timestampNear(boundNextPreIndex.toNumber(), nextYear), 'The preindex deadline have to be 1 year');
-    assert.ok(timestampNear(boundNextPosIndex.toNumber(), nextMonth), 'The posindex deadline have to be 1 month');
+    assert.ok(Utils.timestampNear(boundNextPreIndex.toNumber(), nextYear), 'The preindex deadline have to be 1 year');
+    assert.ok(Utils.timestampNear(boundNextPosIndex.toNumber(), nextMonth), 'The posindex deadline have to be 1 month');
 
     curMonth = await currentMonth.call();
     curEmition = await lastBoundEmition.call();
 
     assert.equal(curMonth.toNumber(), exMonth + 1, 'The current month have to be 1');
-    assert.ok(timestampNear(curEmition.toNumber(), now) ,`O timestamp inicial precisa ser ${now}`);
+    assert.ok(Utils.timestampNear(curEmition.toNumber(), now) ,`O timestamp inicial precisa ser ${now}`);
 
     // Testa se é possível emitir outro bound
-    r = await haveToRevert(createBound.call(firstPreIndex));
+    r = await Utils.revert(createBound.call(firstPreIndex));
     assert.ok(r, 'New emition is forbiden!');
   });
 
-  it('Testing profit calculation (with mock)', async () => {
+  it('Testing profit calculation', async () => {
     const meta = IFTM.deployed();
     const {
       symbol,
@@ -159,14 +160,6 @@ contract('IFT', (accounts) => {
     const profit = await estimateProfit.call(amount, newBoundMonth);
     const exProfit = Math.floor(amount + (amount * firstPosIndex / 1E5));
     assert.equal(profit.toNumber(), exProfit, `Total have to be ${exProfit}`);
-  });
-
-  it('Testing ETH transactions', () => {
-
-  });
-
-  it('Testing IFT transactions', () => {
-
   });
 
 });
