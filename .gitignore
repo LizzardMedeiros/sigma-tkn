@@ -1,3 +1,5 @@
-node_modules
+node_modules/
 backup
-build
+build/
+test/mnemonic.json
+config.json
